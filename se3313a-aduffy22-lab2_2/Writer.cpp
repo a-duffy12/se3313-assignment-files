@@ -6,6 +6,7 @@
 
 #include "SharedObject.h"
 #include "thread.h"
+#include "Semaphore.h"
 
 using namespace std;
 
@@ -48,11 +49,15 @@ class WriterThread : public Thread
 			time_t lastReportTime; // time of last report
 			time_t nextReportTime; // time of current report
 			
+			Semaphore memory("memory"); // semphore for access to shared memory
+			
 			lastReportTime = time(&lastReportTime); // set intial time for previous report as it is about to occur
 		
 			
 			while (run) // run the thread continuously
 			{
+				memory.Wait(); // lock writer into shared memory
+				
 				reportCount++; // increase count of reports
 				nextReportTime = time(&nextReportTime); // set time since previous report right before next report
 				
@@ -62,6 +67,7 @@ class WriterThread : public Thread
 				sharedMemory->timePassed = nextReportTime - lastReportTime;
 				
 				lastReportTime = time(&lastReportTime); // set time of most recent report
+				memory.Signal(); // unlock shared memoery for another process
 				
 				sleep(delay); // delay program for input number of seconds
 				 
@@ -87,6 +93,8 @@ int main(void)
 	vector <WriterThread *> threads; // vector array of all threads
 	
 	Shared <MyShared> shared("sharedMemory", true); // declare this process the owner of the shared memory
+	
+	Semaphore memory("memory", 1, true); // declare semaphore for shared memory
 	
 	while (true)
 	{
