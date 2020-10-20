@@ -11,6 +11,7 @@ struct MyShared
 	int id; // thread id
 	int count; // count of reports from a given thread
 	int timePassed; // time since last report of a given thread
+	bool read; // confirms that reader has read before writing again
 	void printInfo(); // function to print all this info
 };
 
@@ -26,7 +27,6 @@ int main(void)
 	
 	Shared<MyShared> sharedMemory ("sharedMemory"); // declare shared memory obejct to read from
 	Semaphore memory("memory", 1, true); // declare semaphore for shared memory
-	Semaphore reader("reader", 1, true); // declare semaphore for reader process
 	
 	// temporary variables to look for changes in the shared memory
 	int tempId;
@@ -43,15 +43,21 @@ int main(void)
 			tempId = sharedMemory->id;
 			tempCount = sharedMemory->count;
 			tempTime = sharedMemory->timePassed;
+			sharedMemory->read = true; // mark shared memory as read
 			memory.Signal(); // unlock shared memory for another process
 			check = true; // initial values have been grabbed
 		}
 		
 		// only print shared memory contents if they have been changed since the last time they were printed
 		memory.Wait(); // lock reader into shared memory
-		if ((tempId != sharedMemory->id) || (tempCount != sharedMemory->count) || (tempTime != sharedMemory->timePassed)) // check for updated values in shared memory
+		if (sharedMemory->read)
+		{
+			
+		}
+		else if (!sharedMemory->read &&((tempId != sharedMemory->id) || (tempCount != sharedMemory->count) || (tempTime != sharedMemory->timePassed))) // check for updated values in shared memory
 		{
 			sharedMemory->printInfo(); // print updated info in shared memory
+			sharedMemory->read = true; // mark shared memory as read
 			
 			// update temporary variables 
 			tempId = sharedMemory->id;

@@ -15,6 +15,7 @@ struct MyShared
 	int id; // thread id
 	int count; // count of reports from a given thread
 	int timePassed; // time since last report of a given thread
+	bool read; // confirms that reader has read before writing again
 	void printInfo(); // function to print all this info
 };
 
@@ -56,21 +57,31 @@ class WriterThread : public Thread
 			
 			while (run) // run the thread continuously
 			{
+				sleep(delay); // delay program for input number of seconds
+				
 				memory.Wait(); // lock writer into shared memory
 				
-				reportCount++; // increase count of reports
-				nextReportTime = time(&nextReportTime); // set time since previous report right before next report
+				while (!sharedMemory->read) // check if the memory has been read yet
+				{
+					memory.Signal(); // if not, then let another thread go first
+					memory.Wait(); // then request access to the shared memory
+				}
 				
-				// add thread values to shared memory object
-				sharedMemory->id = num;
-				sharedMemory->count = reportCount;
-				sharedMemory->timePassed = nextReportTime - lastReportTime;
+				if (sharedMemory->read) // if the shared memory has been read and the thread can now write
+				{
+					reportCount++; // increase count of reports
+					nextReportTime = time(&nextReportTime); // set time since previous report right before next report
 				
-				lastReportTime = time(&lastReportTime); // set time of most recent report
-				memory.Signal(); // unlock shared memoery for another process
+					// add thread values to shared memory object
+					sharedMemory->id = num;
+					sharedMemory->count = reportCount;
+					sharedMemory->timePassed = nextReportTime - lastReportTime;
+					sharedMemory->read = false; // set memory to unread as it has now changed
 				
-				sleep(delay); // delay program for input number of seconds
-				 
+					lastReportTime = time(&lastReportTime); // set time of most recent report		
+				}
+				
+				memory.Signal(); // unlock shared memoery for another process 
 			}
 		}
 		
